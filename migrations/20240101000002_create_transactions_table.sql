@@ -34,6 +34,8 @@ CREATE TABLE IF NOT EXISTS transactions (
     -- Timestamps for tracking when transactions occur
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 
+    last_updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+
 
 );
 

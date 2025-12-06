@@ -57,12 +57,13 @@ pub mod user_models {
 }
 
 pub mod transaction_models {
-    use serde::Deserialize;
+    use chrono::{DateTime, Utc};
+    use serde::{Deserialize, Serialize};
     use std::str::FromStr;
     use uuid::Uuid;
 
     // Simple enums for internal type safety
-    #[derive(Debug, Clone)]
+    #[derive(Debug, Clone, Serialize, Deserialize)]
     pub enum TransactionType {
         Expense,
         Income,
@@ -89,7 +90,7 @@ pub mod transaction_models {
         }
     }
 
-    #[derive(Debug, Clone)]
+    #[derive(Debug, Clone, Deserialize, Serialize)]
     pub enum TransactionCategory {
         Groceries,
         Restaurant,
@@ -167,5 +168,40 @@ pub mod transaction_models {
         pub amount: f64,
         pub category: Option<String>,
         pub description: Option<String>,
+    }
+
+    #[derive(Deserialize, Debug, Serialize)]
+    pub struct TransactionQuery {
+        id: Uuid,
+        user_id: Uuid,
+        transaction_type: TransactionType,
+        amount: f64,
+        category: TransactionCategory,
+        description: String,
+        created_at: DateTime<Utc>,
+        updated_at: DateTime<Utc>,
+    }
+    impl TransactionQuery {
+        pub fn new(
+            id: Uuid,
+            user_id: Uuid,
+            transaction_type: TransactionType,
+            amount: f64,
+            category: TransactionCategory,
+            description: String,
+            created_at: DateTime<Utc>,
+            updated_at: DateTime<Utc>,
+        ) -> Self {
+            Self {
+                id,
+                user_id,
+                transaction_type,
+                amount,
+                category,
+                description,
+                created_at,
+                updated_at,
+            }
+        }
     }
 }

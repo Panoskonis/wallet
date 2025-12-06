@@ -105,21 +105,15 @@ async fn get_user_handler(
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-    match user {
-        Some(user) => Ok(Json(json!({
-            "message": "User retrieved successfully",
-            "user": {
-                "email": user.email,
-                "name": user.name,
-                "created_at": user.created_at.to_rfc3339(),
-                "updated_at": user.updated_at.to_rfc3339()
-            }
-        }))),
-        None => {
-            eprintln!("User not found: {}", email);
-            Err(StatusCode::NOT_FOUND)
+    Ok(Json(json!({
+        "message": "User retrieved successfully",
+        "user": {
+            "email": user.email,
+            "name": user.name,
+            "created_at": user.created_at.to_rfc3339(),
+            "updated_at": user.updated_at.to_rfc3339()
         }
-    }
+    })))
 }
 
 async fn get_users_handler(State(state): State<AppState>) -> Result<Json<Value>, StatusCode> {
@@ -174,10 +168,6 @@ async fn create_transaction_handler(
             eprintln!("Error fetching user '{}': {}", req.user_email, e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
-    let user = match user {
-        Some(user) => user,
-        None => return Err(StatusCode::NOT_FOUND),
-    };
 
     // Create transaction with validated enums
     let transaction = transaction_models::TransactionCreate::new(
