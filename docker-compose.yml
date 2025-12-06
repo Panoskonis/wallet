@@ -1,0 +1,26 @@
+services:
+  postgres:
+    image: postgres:latest
+    container_name: wallet_postgres
+    environment:
+      POSTGRES_USER: wallet_user
+      POSTGRES_PASSWORD: wallet_password
+      POSTGRES_DB: wallet_db
+    ports:
+      - "5432:5432"
+    volumes:
+      # Persist database data in a named volume
+      # PostgreSQL 18+ requires mounting at /var/lib/postgresql instead of /var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      # Health check to ensure database is ready before connecting
+      test: ["CMD-SHELL", "pg_isready -U wallet_user -d wallet_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    # Named volume for data persistence across container restarts
+

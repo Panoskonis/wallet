@@ -1,0 +1,28 @@
+[package]
+name = "wallet"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+# Web framework - Axum is modern, async-first, and built on Tokio
+axum = "0.7"
+# Async runtime - required for Axum and async database operations
+tokio = { version = "1", features = ["full"] }
+# PostgreSQL driver with compile-time SQL checking
+sqlx = { version = "0.7", features = ["runtime-tokio-native-tls", "postgres", "chrono", "uuid"] }
+# JSON serialization/deserialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+# Environment variable management
+dotenv = "0.15"
+# Middleware and HTTP utilities
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors"] }
+# Error handling utilities
+anyhow = "1.0"
+# Date and time handling
+chrono = { version = "0.4", features = ["serde"] }
+# UUID support
+uuid = { version = "1.0", features = ["v4", "serde"] }
+# Logging framework
+env_logger = "0.11"
