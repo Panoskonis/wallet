@@ -61,9 +61,12 @@ pub mod transaction_models {
     use serde::{Deserialize, Serialize};
     use std::str::FromStr;
     use uuid::Uuid;
+    use sqlx;
+    use rust_decimal::Decimal;
 
     // Simple enums for internal type safety
-    #[derive(Debug, Clone, Serialize, Deserialize)]
+    #[derive(sqlx::Type,Debug, Clone, Serialize, Deserialize)]
+    #[sqlx(type_name = "transaction_type")] 
     pub enum TransactionType {
         Expense,
         Income,
@@ -175,22 +178,22 @@ pub mod transaction_models {
         id: Uuid,
         user_id: Uuid,
         transaction_type: TransactionType,
-        amount: f64,
+        amount: Decimal,
         category: TransactionCategory,
         description: String,
         created_at: DateTime<Utc>,
-        updated_at: DateTime<Utc>,
+        last_updated_at: DateTime<Utc>,
     }
     impl TransactionQuery {
         pub fn new(
             id: Uuid,
             user_id: Uuid,
             transaction_type: TransactionType,
-            amount: f64,
+            amount: Decimal,
             category: TransactionCategory,
             description: String,
             created_at: DateTime<Utc>,
-            updated_at: DateTime<Utc>,
+            last_updated_at: DateTime<Utc>,
         ) -> Self {
             Self {
                 id,
@@ -200,8 +203,19 @@ pub mod transaction_models {
                 category,
                 description,
                 created_at,
-                updated_at,
+                last_updated_at,
             }
         }
+    }
+
+    #[derive(Deserialize, Debug, Serialize)]
+    pub struct TransactionGetParameters {
+        pub user_id: Option<Uuid>,
+        pub category: Option<String>,
+        pub transaction_type: Option<String>,
+        pub amount_min: Option<Decimal>,
+        pub amount_max: Option<Decimal>,
+        pub start_timestamp: Option<DateTime<Utc>>,
+        pub end_timestamp: Option<DateTime<Utc>>,
     }
 }

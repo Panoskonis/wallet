@@ -5,7 +5,7 @@ mod models;
 mod queries;
 use axum::{
     Router,
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::StatusCode,
     response::Json,
     routing::{get, post},
@@ -190,6 +190,53 @@ async fn create_transaction_handler(
     })))
 }
 
+async fn get_transactions_handler(
+    State(state): State<AppState>,
+    where_clause_params: Query<transaction_models::TransactionGetParameters>,
+) -> Result<Json<Value>, StatusCode> {
+    let transaction_get_params = where_clause_params.0;
+    let user_id = transaction_get_params.user_id;
+    let category = match transaction_get_params.category {
+        Some(strr) => match transaction_models::TransactionCategory::from_str(&strr) {
+            Ok(cat) => Some(cat),
+            Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
+        },
+        None => None,
+    };
+    let transaction_type = match transaction_get_params.transaction_type {
+        Some(strr) => match transaction_models::TransactionType::from_str(&strr) {
+            Ok(trans) => Some(trans),
+            Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
+        },
+        None => None,
+    };
+    let amount_min = transaction_get_params.amount_min;
+    let amount_max = transaction_get_params.amount_max;
+
+    let start_timestamp = transaction_get_params.start_timestamp;
+    let end_timestamp = transaction_get_params.end_timestamp;
+
+    let transactions = transaction_queries::get_transactions(
+        &state.db,
+        user_id,
+        category,
+        transaction_type,
+        amount_min,
+        amount_max,
+        start_timestamp,
+        end_timestamp,
+    )
+    .await
+    .map_err(|e| {
+        eprintln!("{}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    println!("{transactions:?}");
+    return Ok(Json(json!({
+        "message": "Transactions retrieved successfully",
+        "users": transactions
+    })));
+}
 /// Main entry point of the application
 /// Sets up the Axum web server, routes, middleware, and starts listening
 #[tokio::main]
@@ -233,6 +280,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/users/:email", get(get_user_handler))
         .route("/api/users", get(get_users_handler))
         .route("/api/transactions", post(create_transaction_handler))
+        .route("/api/transactions", get(get_transactions_handler))
         // Add CORS middleware to allow cross-origin requests
         // This is important for web applications making API calls
         .layer(CorsLayer::permissive())

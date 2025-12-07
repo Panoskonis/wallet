@@ -64,11 +64,13 @@ pub mod transaction_queries {
     };
     use anyhow::anyhow;
     use chrono::{DateTime, Utc};
-    use sqlx::Row;
+    use sqlx::QueryBuilder;
     use sqlx::postgres::PgRow;
-    use sqlx::{QueryBuilder};
+    use sqlx::{Execute, Row};
     use std::str::FromStr;
     use uuid::Uuid;
+    use rust_decimal::Decimal;
+
 
     pub async fn create_transaction(
         pool: &DbPool,
@@ -95,16 +97,7 @@ pub mod transaction_queries {
             Some(row) => {
                 let id: Uuid = row.try_get("id")?;
                 let user_id: Uuid = row.try_get("user_id")?;
-                let transaction_type_string: &str = row.try_get("transaction_type")?;
-                let transaction_type = TransactionType::from_str(transaction_type_string);
-                let transaction_type = match transaction_type {
-                    Ok(transaction) => transaction,
-                    Err(e) => {
-                        return Err(anyhow!(
-                            "Could not convert {transaction_type_string} to TransactionType enum: {e}"
-                        ));
-                    }
-                };
+                let transaction_type  = row.try_get("transaction_type")?;
                 let categore_string: &str = row.try_get("category")?;
                 let category = TransactionCategory::from_str(categore_string);
                 let category = match category {
@@ -115,10 +108,10 @@ pub mod transaction_queries {
                         ));
                     }
                 };
-                let description: String = row.try_get("desription")?;
+                let description: String = row.try_get("description")?;
                 let created_at: DateTime<Utc> = row.try_get("created_at")?;
-                let updated_at: DateTime<Utc> = row.try_get("updated_at")?;
-                let amount: f64 = row.try_get("amount")?;
+                let last_updated_at: DateTime<Utc> = row.try_get("last_updated_at")?;
+                let amount: Decimal = row.try_get("amount")?;
                 return Ok(transaction::TransactionQuery::new(
                     id,
                     user_id,
@@ -127,17 +120,18 @@ pub mod transaction_queries {
                     category,
                     description,
                     created_at,
-                    updated_at,
+                    last_updated_at,
                 ));
             }
             None => return Err(anyhow!("Provided row is None")),
         }
     }
 
-    fn push_where_or_and <DB>(query: & mut QueryBuilder<DB>, where_is_inserted: & mut bool)-> ()
-    where DB: sqlx::Database
+    fn push_where_or_and<DB>(query: &mut QueryBuilder<DB>, where_is_inserted: &mut bool) -> ()
+    where
+        DB: sqlx::Database,
     {
-        if ! *where_is_inserted {
+        if !*where_is_inserted {
             query.push(" WHERE");
             *where_is_inserted = true;
         } else {
@@ -145,37 +139,56 @@ pub mod transaction_queries {
         }
     }
 
-
     pub async fn get_transactions(
         pool: &DbPool,
         user_id: Option<Uuid>,
         category: Option<TransactionCategory>,
         transaction_type: Option<TransactionType>,
-        period: Option<(DateTime<Utc>, DateTime<Utc>)>,
+        amount_min: Option<Decimal>,
+        amount_max: Option<Decimal>,
+        start_timestamp: Option<DateTime<Utc>>,
+        end_timestamp: Option<DateTime<Utc>>,
     ) -> anyhow::Result<Vec<transaction::TransactionQuery>> {
         let mut query = QueryBuilder::new("SELECT * FROM transactions");
         let mut where_is_inserted = false;
         if let Some(user_id) = user_id {
             push_where_or_and(&mut query, &mut where_is_inserted);
-            query.push(" user_id = ?").push_bind(user_id);
-            
+            query.push(" user_id = ").push_bind(user_id);
         }
         if let Some(category) = category {
             push_where_or_and(&mut query, &mut where_is_inserted);
-            query.push(" category = ?").push_bind(category.to_string());
+            query.push(" category = ").push_bind(category.to_string());
         }
         if let Some(transaction_type) = transaction_type {
             push_where_or_and(&mut query, &mut where_is_inserted);
-            query.push(" category = ?").push_bind(transaction_type.to_string());
+            query
+                .push(" category = ")
+                .push_bind(transaction_type.to_string());
         }
-        if let Some(period) = period {
+        if let Some(start_timestamp) = start_timestamp {
             push_where_or_and(&mut query, &mut where_is_inserted);
-            query.push(" created_at >= ?").push_bind(period.0);
-            query.push(" created_at <= ?").push_bind(period.1);
+            query.push(" created_at >= ").push_bind(start_timestamp);
         }
-    let query = query.build();
-    let transactions = query.fetch_all(pool).await?;
-    let trans = transactions.into_iter().map(|r| map_row_to_transaction(Some(r))).collect::<anyhow::Result<Vec<transaction::TransactionQuery>>>();
-    return trans
+
+        if let Some(end_timestamp) = end_timestamp {
+            push_where_or_and(&mut query, &mut where_is_inserted);
+            query.push(" created_at <= ").push_bind(end_timestamp);
+        }
+        if let Some(amount_min) = amount_min {
+            push_where_or_and(&mut query, &mut where_is_inserted);
+            query.push(" amount >= ").push_bind(amount_min);
+        }
+        if let Some(amount_max) = amount_max {
+            push_where_or_and(&mut query, &mut where_is_inserted);
+            query.push(" amount <= ").push_bind(amount_max);
+        }
+        let query = query.build();
+        println!("transaction query build {}", query.sql());
+        let transactions = query.fetch_all(pool).await?;
+        let trans = transactions
+            .into_iter()
+            .map(|r| map_row_to_transaction(Some(r)))
+            .collect::<anyhow::Result<Vec<transaction::TransactionQuery>>>();
+        return trans;
     }
 }

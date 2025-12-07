@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS transactions (
     -- balance_after DECIMAL(19,4) NOT NULL,
     
     -- Timestamps for tracking when transactions occur
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
     last_updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 
