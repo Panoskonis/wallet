@@ -64,13 +64,12 @@ pub mod transaction_queries {
     };
     use anyhow::anyhow;
     use chrono::{DateTime, Utc};
+    use rust_decimal::Decimal;
     use sqlx::QueryBuilder;
     use sqlx::postgres::PgRow;
     use sqlx::{Execute, Row};
     use std::str::FromStr;
     use uuid::Uuid;
-    use rust_decimal::Decimal;
-
 
     pub async fn create_transaction(
         pool: &DbPool,
@@ -97,14 +96,14 @@ pub mod transaction_queries {
             Some(row) => {
                 let id: Uuid = row.try_get("id")?;
                 let user_id: Uuid = row.try_get("user_id")?;
-                let transaction_type  = row.try_get("transaction_type")?;
-                let categore_string: &str = row.try_get("category")?;
-                let category = TransactionCategory::from_str(categore_string);
+                let transaction_type = row.try_get("transaction_type")?;
+                let category_string: &str = row.try_get("category")?;
+                let category = TransactionCategory::from_str(category_string);
                 let category = match category {
                     Ok(cat) => cat,
                     Err(e) => {
                         return Err(anyhow!(
-                            "Could not convert {categore_string} to TransactionCategory enum: {e}"
+                            "Could not convert {category_string} to TransactionCategory enum: {e}"
                         ));
                     }
                 };
@@ -190,5 +189,37 @@ pub mod transaction_queries {
             .map(|r| map_row_to_transaction(Some(r)))
             .collect::<anyhow::Result<Vec<transaction::TransactionQuery>>>();
         return trans;
+    }
+
+    pub async fn get_user_transaction_sum(
+        pool: &DbPool,
+        user_id: Uuid,
+        category: Option<TransactionCategory>,
+        transaction_type: Option<TransactionType>,
+        start_timestamp: Option<DateTime<Utc>>,
+        end_timestamp: Option<DateTime<Utc>>,
+    ) -> anyhow::Result<Decimal> {
+        let mut total_sum = Decimal::from(0);
+        let transactions = get_transactions(
+            pool,
+            Some(user_id),
+            category,
+            transaction_type,
+            None,
+            None,
+            start_timestamp,
+            end_timestamp,
+        ).await?;
+
+
+        for tr in transactions.iter() {
+            match tr.transaction_type {
+                TransactionType::Expense => total_sum -= tr.amount,
+                TransactionType::Income => total_sum += tr.amount
+            }
+
+        }
+
+        return Ok(total_sum)
     }
 }

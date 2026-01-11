@@ -237,6 +237,49 @@ async fn get_transactions_handler(
         "users": transactions
     })));
 }
+
+async fn get_amount_handler(State(state): State<AppState>,
+where_clause_params: Query<transaction_models::TransactionGetParameters>)-> Result<Json<Value>, StatusCode>{
+    let transaction_get_params = where_clause_params.0;
+    let user_id = transaction_get_params.user_id;
+    if let None = user_id {
+        return Err(StatusCode::INTERNAL_SERVER_ERROR)
+    }
+    let category = match transaction_get_params.category {
+        Some(strr) => match transaction_models::TransactionCategory::from_str(&strr) {
+            Ok(cat) => Some(cat),
+            Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
+        },
+        None => None,
+    };
+    let transaction_type = match transaction_get_params.transaction_type {
+        Some(strr) => match transaction_models::TransactionType::from_str(&strr) {
+            Ok(trans) => Some(trans),
+            Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
+        },
+        None => None,
+    };
+
+    let start_timestamp = transaction_get_params.start_timestamp;
+    let end_timestamp = transaction_get_params.end_timestamp;
+    let money_sum = transaction_queries::get_user_transaction_sum(
+        &state.db,
+        user_id.unwrap(),
+        category,
+        transaction_type,
+        start_timestamp,
+        end_timestamp
+    ).await.map_err(|e| {
+        eprintln!("{}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    return Ok(Json(json!({
+        "message": "Transactions sum retrieved successfully",
+        "users": money_sum
+    })))
+
+}
 /// Main entry point of the application
 /// Sets up the Axum web server, routes, middleware, and starts listening
 #[tokio::main]
@@ -281,6 +324,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/users", get(get_users_handler))
         .route("/api/transactions", post(create_transaction_handler))
         .route("/api/transactions", get(get_transactions_handler))
+        .route("/api/transactions/amount", get(get_amount_handler))
         // Add CORS middleware to allow cross-origin requests
         // This is important for web applications making API calls
         .layer(CorsLayer::permissive())

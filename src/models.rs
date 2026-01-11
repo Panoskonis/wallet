@@ -58,15 +58,15 @@ pub mod user_models {
 
 pub mod transaction_models {
     use chrono::{DateTime, Utc};
+    use rust_decimal::Decimal;
     use serde::{Deserialize, Serialize};
+    use sqlx;
     use std::str::FromStr;
     use uuid::Uuid;
-    use sqlx;
-    use rust_decimal::Decimal;
 
     // Simple enums for internal type safety
-    #[derive(sqlx::Type,Debug, Clone, Serialize, Deserialize)]
-    #[sqlx(type_name = "transaction_type")] 
+    #[derive(sqlx::Type, Debug, Clone, Serialize, Deserialize)]
+    #[sqlx(type_name = "transaction_type")]
     pub enum TransactionType {
         Expense,
         Income,
@@ -175,14 +175,14 @@ pub mod transaction_models {
 
     #[derive(Deserialize, Debug, Serialize)]
     pub struct TransactionQuery {
-        id: Uuid,
-        user_id: Uuid,
-        transaction_type: TransactionType,
-        amount: Decimal,
-        category: TransactionCategory,
-        description: String,
-        created_at: DateTime<Utc>,
-        last_updated_at: DateTime<Utc>,
+        pub id: Uuid,
+        pub user_id: Uuid,
+        pub transaction_type: TransactionType,
+        pub amount: Decimal,
+        pub category: TransactionCategory,
+        pub description: String,
+        pub created_at: DateTime<Utc>,
+        pub last_updated_at: DateTime<Utc>,
     }
     impl TransactionQuery {
         pub fn new(
