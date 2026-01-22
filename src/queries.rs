@@ -177,8 +177,8 @@ pub mod transaction_queries {
         if let Some(transaction_type) = transaction_type {
             push_where_or_and(&mut query, &mut where_is_inserted);
             query
-                .push(" category = ")
-                .push_bind(transaction_type.to_string());
+                .push(" transaction_type = ")
+                .push_bind(transaction_type);
         }
         if let Some(start_timestamp) = start_timestamp {
             push_where_or_and(&mut query, &mut where_is_inserted);

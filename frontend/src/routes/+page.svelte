@@ -9,6 +9,11 @@
 
 	let users = $state<User[]>([]);
 	let usersLoading = $state<boolean>(false);
+	let userAmounts = $state<Record<string, number | null>>({});
+	let userAmountsLoading = $state<Record<string, boolean>>({});
+
+	let userExpenses = $state<Record<string, number | null>>({});
+	let userExpensesLoading = $state<Record<string, boolean>>({});
 
 	let selectedUserId = $state<string>('');
 	let selectedUserEmail = $state<string>('');
@@ -55,11 +60,64 @@
 		try {
 			const res = await getUsers();
 			users = res.users || [];
+			await refreshUserAmounts(users);
+			await refreshUserExpenses(users);
 		} catch (e) {
 			error = e instanceof Error ? e.message : String(e);
 		} finally {
 			usersLoading = false;
 		}
+	}
+
+	async function refreshUserAmounts(list: User[] = users) {
+		userAmountsLoading = {};
+		const nextAmounts: Record<string, number | null> = {};
+		const requests = list.map(async (u) => {
+			userAmountsLoading[u.id] = true;
+			try {
+				const res = await getAmount({ user_id: u.id });
+				nextAmounts[u.id] = res.amount ?? 0;
+			} catch {
+				nextAmounts[u.id] = null;
+			} finally {
+				userAmountsLoading[u.id] = false;
+			}
+		});
+		await Promise.all(requests);
+		userAmounts = { ...userAmounts, ...nextAmounts };
+	}
+
+	async function refreshUserExpenses(list: User[] = users) {
+		userExpensesLoading = {};
+		const nextExpenses: Record<string, number | null> = {};
+		const requests = list.map(async (u) => {
+			userExpensesLoading[u.id] = true;
+			try {
+				const res = await getAmount({ user_id: u.id, transaction_type: 'Expense' });
+				nextExpenses[u.id] = res.amount ?? 0;
+			} catch (e) {
+				error = e instanceof Error ? e.message : String(e);
+				nextExpenses[u.id] = null;
+			} finally {
+				userExpensesLoading[u.id] = false;
+			}
+		});
+		await Promise.all(requests);
+		userExpenses = { ...userExpenses, ...nextExpenses };
+	}
+
+	function displayAmount(userId: string) {
+		const amount = userAmounts[userId];
+		if (userAmountsLoading[userId]) return 'Loading…';
+		if (amount == null) return '—';
+		return amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+	}
+
+	function displayExpenses(userId: string) {
+		const expenses = userExpenses[userId];
+		if (userExpensesLoading[userId]) return 'Loading…';
+		if (expenses == null) return '—';
+		return expenses.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 	}
 
 	async function refreshTransactions() {
@@ -152,6 +210,8 @@
 			newTx = { ...newTx, amount: 0, description: '' };
 			await refreshTransactions();
 			await refreshAmount();
+			await refreshUserAmounts(users);
+			await refreshUserExpenses(users);
 		} catch (e) {
 			error = e instanceof Error ? e.message : String(e);
 		}
@@ -222,15 +282,17 @@
 		{:else}
 			<div class="table">
 				<div class="thead">
-					<div>ID</div>
 					<div>Email</div>
 					<div>Name</div>
+					<div>Amount</div>
+					<div>Expenses</div>
 				</div>
 				{#each users as u (u.id)}
 					<div class="trow">
-						<code class="mono">{u.id}</code>
 						<div>{u.email}</div>
 						<div>{u.name}</div>
+						<div>{displayAmount(u.id)}</div>
+						<div>{displayExpenses(u.id)}</div>
 					</div>
 				{/each}
 			</div>
@@ -318,6 +380,7 @@
 							class="autocomplete-item"
 							class:focused={index === focusedSuggestionIndex}
 							role="option"
+							aria-selected={selectedUserId === user.id}
 							tabindex="0"
 							onclick={() => selectUser(user)}
 							onkeydown={(e) => {
@@ -550,7 +613,7 @@
 	.thead,
 	.trow {
 		display: grid;
-		grid-template-columns: 2fr 2fr 1.2fr;
+		grid-template-columns: 2fr 2fr 1.2fr 1.2fr;
 		gap: 10px;
 		align-items: center;
 		padding: 10px 12px;
