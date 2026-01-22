@@ -13,7 +13,7 @@ use axum::{
     routing::{get, post},
 };
 use serde_json::{Value, json};
-use std::{net::SocketAddr};
+use std::net::SocketAddr;
 use tower_http::cors::CorsLayer;
 // Import our modules
 use crate::config::Config;
@@ -40,23 +40,6 @@ async fn db_health(State(state): State<handlers::AppState>) -> Result<Json<Value
         }))),
         Err(_) => Err(StatusCode::SERVICE_UNAVAILABLE),
     }
-}
-
-/// Example endpoint that queries the database
-/// This demonstrates how to use the connection pool in a req handler
-async fn example_query(State(state): State<handlers::AppState>) -> Result<Json<Value>, StatusCode> {
-    // Execute a simple query using SQLx
-    // The `?` operator propagates errors - if the query fails, return 500
-    let result: (i64,) = sqlx::query_as("SELECT $1 as value")
-        .bind(42i64)
-        .fetch_one(&state.db)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    Ok(Json(json!({
-        "message": "Database query successful",
-        "result": result.0
-    })))
 }
 
 /// Main entry point of the application
@@ -95,15 +78,19 @@ async fn main() -> anyhow::Result<()> {
         .route("/health", get(health))
         // Database health check - tests database connectivity
         .route("/health/db", get(db_health))
-        // Example endpoint demonstrating database queries
-        .route("/api/example", get(example_query))
         // Create user endpoint
         .route("/api/users", post(handlers::create_user_handler))
         .route("/api/users/:email", get(handlers::get_user_handler))
         .route("/api/users", get(handlers::get_users_handler))
-        .route("/api/transactions", post(handlers::create_transaction_handler))
+        .route(
+            "/api/transactions",
+            post(handlers::create_transaction_handler),
+        )
         .route("/api/transactions", get(handlers::get_transactions_handler))
-        .route("/api/transactions/amount", get(handlers::get_amount_handler))
+        .route(
+            "/api/transactions/amount",
+            get(handlers::get_amount_handler),
+        )
         // Add CORS middleware to allow cross-origin requests
         // This is important for web applications making API calls
         .layer(CorsLayer::permissive())

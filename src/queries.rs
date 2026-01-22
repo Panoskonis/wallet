@@ -2,16 +2,28 @@ pub mod user_queries {
     use crate::database::DbPool;
     use crate::models::user_models as user;
     use anyhow::anyhow;
+
+    use argon2::{
+        Argon2, PasswordHasher,
+        password_hash::{SaltString, rand_core::OsRng},
+    };
+
     use chrono::{DateTime, Utc};
     use sqlx::Row;
     use sqlx::postgres::PgRow;
     use uuid::Uuid;
 
     pub async fn create_user(pool: &DbPool, user: &user::UserCreate) -> anyhow::Result<String> {
+        let salt = SaltString::generate(&mut OsRng);
+        let argon2 = Argon2::default();
+        let hashed_pwd = argon2
+            .hash_password(user.password.as_bytes(), &salt)
+            .map_err(|e| anyhow::anyhow!("password hashing failed: {e}"))?
+            .to_string();
         sqlx::query("INSERT INTO users (email, name, password) VALUES ($1, $2, $3)")
             .bind(&user.email)
             .bind(&user.name)
-            .bind(&user.password)
+            .bind(&hashed_pwd)
             .execute(pool)
             .await?;
         Ok(user.name.clone())
