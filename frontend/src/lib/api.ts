@@ -81,7 +81,27 @@ export function createApiClient(baseUrl = '') {
 			// Backend currently responds with { message, users: [...] } (typo), so accept both shapes.
 			const items = (data['transactions'] || data['users'] || []) as Transaction[];
 			return { message: (data['message'] as string) || '', transactions: items };
-		}
+		},
+		getAmount: async (params: {
+			user_id?: string;
+			category?: string;
+			transaction_type?: string;
+			start_timestamp?: string;
+			end_timestamp?: string;
+		}) => {
+			const qs = new URLSearchParams();
+			for (const [k, v] of Object.entries(params)) {
+				if (v === undefined || v === '') continue;
+				qs.set(k, String(v));
+			}
+
+			const data = await api<Record<string, unknown>>(
+				baseUrl,
+				`/api/transactions/amount${qs.size ? `?${qs}` : ''}`
+			);
+
+			return { message: (data['message'] as string) || '', amount: data['amount'] as number };
+		} 
 	};
 }
 
@@ -94,4 +114,5 @@ export const createUser = defaultClient.createUser;
 export const getUsers = defaultClient.getUsers;
 export const createTransaction = defaultClient.createTransaction;
 export const getTransactions = defaultClient.getTransactions;
+export const getAmount = defaultClient.getAmount;
 

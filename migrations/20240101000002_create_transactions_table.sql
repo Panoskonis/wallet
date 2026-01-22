@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS transactions (
     -- Transaction amount - stored as DECIMAL for precise financial calculations
     -- Using DECIMAL(19,4) allows up to 15 digits before decimal, 4 after
     -- This prevents floating-point precision issues with money
-    amount DECIMAL(19,4) NOT NULL CHECK (amount > 0),
+    amount DECIMAL(19,4) NOT NULL,
 
     -- Category of the transaction
     category VARCHAR(255) NOT NULL,

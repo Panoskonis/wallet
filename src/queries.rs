@@ -75,10 +75,14 @@ pub mod transaction_queries {
         pool: &DbPool,
         transaction: &transaction::TransactionCreate,
     ) -> anyhow::Result<String> {
+        let amount = match transaction.transaction_type {
+            TransactionType::Expense => (-1.0) * transaction.amount.abs(),
+            TransactionType::Income => transaction.amount.abs(),
+        };
         let result = sqlx::query("INSERT INTO transactions (user_id,transaction_type,amount,category,description) VALUES ($1,$2::transaction_type,$3,$4,$5)")
             .bind(&transaction.user_id)
             .bind(&transaction.transaction_type.to_string())
-            .bind(&transaction.amount)
+            .bind(amount)
             .bind(&transaction.category.to_string())
             .bind(&transaction.description)
             .execute(pool)
@@ -209,17 +213,13 @@ pub mod transaction_queries {
             None,
             start_timestamp,
             end_timestamp,
-        ).await?;
-
+        )
+        .await?;
 
         for tr in transactions.iter() {
-            match tr.transaction_type {
-                TransactionType::Expense => total_sum -= tr.amount,
-                TransactionType::Income => total_sum += tr.amount
-            }
-
+            total_sum += tr.amount;
         }
 
-        return Ok(total_sum)
+        return Ok(total_sum);
     }
 }
